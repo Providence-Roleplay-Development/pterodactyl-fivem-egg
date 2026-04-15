@@ -11,6 +11,34 @@ cd /mnt/server
 RELEASE_PAGE=$(curl -sSL https://runtime.fivem.net/artifacts/fivem/build_proot_linux/master/)
 CHANGELOGS_PAGE=$(curl -sSL https://changelogs-live.fivem.net/api/changelog/versions/linux/server)
 
+git_normalize_url() {
+  local u="$1"
+  [ -z "$u" ] && echo "" && return
+  if [[ ${u} != *.git ]]; then
+    u="${u}.git"
+  fi
+  if [ -n "${GIT_USERNAME}" ] && [ -n "${GIT_TOKEN}" ]; then
+    echo "https://${GIT_USERNAME}:${GIT_TOKEN}@$(echo -e "${u}" | cut -d/ -f3-)"
+  else
+    echo "${u}"
+  fi
+}
+
+git_clone_to() {
+  local raw_url="$1"
+  local dest="$2"
+  local label="$3"
+  [ -z "$raw_url" ] && return 0
+  echo "Cloning ${label} repository..."
+  local url
+  url=$(git_normalize_url "${raw_url}")
+  if [ -z "${GIT_BRANCH}" ]; then
+    git clone "${url}" "${dest}" && echo "Finished cloning ${label}." || echo "Failed cloning ${label}."
+  else
+    git clone --single-branch --branch "${GIT_BRANCH}" "${url}" "${dest}" && echo "Finished cloning ${label} (branch ${GIT_BRANCH})." || echo "Failed cloning ${label}."
+  fi
+}
+
 # Check wether to run installation or update version of script
 if [ ! -d "./alpine/" ] && [ ! -d "./resources/" ]; then
   # Install script
@@ -60,26 +88,46 @@ if [ ! -d "./alpine/" ] && [ ! -d "./resources/" ]; then
 
   # Clone resources repo from git or install FiveM default resources
   if [ "${GIT_ENABLED}" == "1" ] && [ ! -d "/mnt/server/resources" ]; then
-    # Download from git
-    
-    echo "Preparing to clone resources repo from git.";
+    echo "Preparing to clone resources from git."
 
-    if [[ ${GIT_REPOURL} != *.git ]]; then # Add .git at end of URL
-      GIT_REPOURL=${GIT_REPOURL}.git
-    fi
+    MULTI_ANY=0
+    [ -n "${GIT_YMAP_REPOURL}" ] && MULTI_ANY=1
+    [ -n "${GIT_VEHICLE_REPOURL}" ] && MULTI_ANY=1
+    [ -n "${GIT_SCRIPTS_REPOURL}" ] && MULTI_ANY=1
+    [ -n "${GIT_EUP_REPOURL}" ] && MULTI_ANY=1
 
-    if [ -z "${GIT_USERNAME}" ] && [ -z "${GIT_TOKEN}" ]; then # Check for git username & token
-      echo -e "Git Username or Git Token was not specified."
+    if [ "${MULTI_ANY}" == "1" ]; then
+      mkdir -p /mnt/server/resources
+      if [ -z "${GIT_USERNAME}" ] && [ -z "${GIT_TOKEN}" ]; then
+        echo -e "Git Username or Git Token was not specified (private repos may fail)."
+      fi
+      git_clone_to "${GIT_YMAP_REPOURL}" "/mnt/server/resources/ymap" "ymap"
+      git_clone_to "${GIT_VEHICLE_REPOURL}" "/mnt/server/resources/vehicle" "vehicle"
+      git_clone_to "${GIT_SCRIPTS_REPOURL}" "/mnt/server/resources/scripts" "scripts"
+      git_clone_to "${GIT_EUP_REPOURL}" "/mnt/server/resources/eup" "eup"
+    elif [ -n "${GIT_REPOURL}" ]; then
+      if [[ ${GIT_REPOURL} != *.git ]]; then
+        GIT_REPOURL=${GIT_REPOURL}.git
+      fi
+
+      if [ -z "${GIT_USERNAME}" ] && [ -z "${GIT_TOKEN}" ]; then
+        echo -e "Git Username or Git Token was not specified."
+      else
+        GIT_REPOURL="https://${GIT_USERNAME}:${GIT_TOKEN}@$(echo -e ${GIT_REPOURL} | cut -d/ -f3-)"
+      fi
+
+      if [ -z ${GIT_BRANCH} ]; then
+        echo -e "Cloning default branch into /resources/*."
+        git clone ${GIT_REPOURL} /mnt/server/resources
+      else
+        echo -e "Cloning ${GIT_BRANCH} branch into /resources/*."
+        git clone --single-branch --branch ${GIT_BRANCH} ${GIT_REPOURL} /mnt/server/resources && echo "Finished cloning into /resources/* from Git." || echo "Failed cloning into /resources/* from Git."
+      fi
     else
-      GIT_REPOURL="https://${GIT_USERNAME}:${GIT_TOKEN}@$(echo -e ${GIT_REPOURL} | cut -d/ -f3-)"
-    fi
-
-    if [ -z ${GIT_BRANCH} ]; then
-      echo -e "Cloning default branch into /resources/*."
-      git clone ${GIT_REPOURL} /mnt/server/resources
-    else
-      echo -e "Cloning ${GIT_BRANCH} branch into /resources/*."
-      git clone --single-branch --branch ${GIT_BRANCH} ${GIT_REPOURL} /mnt/server/resources && echo "Finished cloning into /resources/* from Git." || echo "Failed cloning into /resources/* from Git."
+      mkdir -p /mnt/server/resources
+      echo "Git enabled but no repository URLs configured; installing default FiveM resources."
+      git clone https://github.com/citizenfx/cfx-server-data.git /tmp && echo "Downloaded server from git." || echo "Downloading from git failed."
+      cp -Rf /tmp/resources/* resources/
     fi
 
   else
