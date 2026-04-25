@@ -39,6 +39,16 @@ git_clone_to() {
   fi
 }
 
+if [ -z "${REPOS_ROOT}" ]; then
+  GIT_REPOS_BASE="/mnt/server/resources"
+else
+  if [ "${REPOS_ROOT#/}" != "$REPOS_ROOT" ]; then
+    GIT_REPOS_BASE="${REPOS_ROOT}"
+  else
+    GIT_REPOS_BASE="/mnt/server/${REPOS_ROOT}"
+  fi
+fi
+
 # Check wether to run installation or update version of script
 if [ ! -d "./alpine/" ] && [ ! -d "./resources/" ]; then
   # Install script
@@ -87,7 +97,7 @@ if [ ! -d "./alpine/" ] && [ ! -d "./resources/" ]; then
   fi
 
   # Clone resources repo from git or install FiveM default resources
-  if [ "${GIT_ENABLED}" == "1" ] && [ ! -d "/mnt/server/resources" ]; then
+  if [ "${GIT_ENABLED}" == "1" ] && [ ! -d "${GIT_REPOS_BASE}" ]; then
     echo "Preparing to clone resources from git."
 
     MULTI_ANY=0
@@ -97,14 +107,14 @@ if [ ! -d "./alpine/" ] && [ ! -d "./resources/" ]; then
     [ -n "${GIT_EUP_REPOURL}" ] && MULTI_ANY=1
 
     if [ "${MULTI_ANY}" == "1" ]; then
-      mkdir -p /mnt/server/resources
+      mkdir -p "${GIT_REPOS_BASE}"
       if [ -z "${GIT_USERNAME}" ] && [ -z "${GIT_TOKEN}" ]; then
         echo -e "Git Username or Git Token was not specified (private repos may fail)."
       fi
-      git_clone_to "${GIT_YMAP_REPOURL}" "/mnt/server/resources/ymap" "ymap"
-      git_clone_to "${GIT_VEHICLE_REPOURL}" "/mnt/server/resources/vehicle" "vehicle"
-      git_clone_to "${GIT_SCRIPTS_REPOURL}" "/mnt/server/resources/scripts" "scripts"
-      git_clone_to "${GIT_EUP_REPOURL}" "/mnt/server/resources/eup" "eup"
+      git_clone_to "${GIT_YMAP_REPOURL}" "${GIT_REPOS_BASE}/ymap" "ymap"
+      git_clone_to "${GIT_VEHICLE_REPOURL}" "${GIT_REPOS_BASE}/vehicle" "vehicle"
+      git_clone_to "${GIT_SCRIPTS_REPOURL}" "${GIT_REPOS_BASE}/scripts" "scripts"
+      git_clone_to "${GIT_EUP_REPOURL}" "${GIT_REPOS_BASE}/eup" "eup"
     elif [ -n "${GIT_REPOURL}" ]; then
       if [[ ${GIT_REPOURL} != *.git ]]; then
         GIT_REPOURL=${GIT_REPOURL}.git
@@ -117,17 +127,17 @@ if [ ! -d "./alpine/" ] && [ ! -d "./resources/" ]; then
       fi
 
       if [ -z ${GIT_BRANCH} ]; then
-        echo -e "Cloning default branch into /resources/*."
-        git clone ${GIT_REPOURL} /mnt/server/resources
+        echo -e "Cloning default branch into ${GIT_REPOS_BASE}/*."
+        git clone ${GIT_REPOURL} "${GIT_REPOS_BASE}"
       else
-        echo -e "Cloning ${GIT_BRANCH} branch into /resources/*."
-        git clone --single-branch --branch ${GIT_BRANCH} ${GIT_REPOURL} /mnt/server/resources && echo "Finished cloning into /resources/* from Git." || echo "Failed cloning into /resources/* from Git."
+        echo -e "Cloning ${GIT_BRANCH} branch into ${GIT_REPOS_BASE}/*."
+        git clone --single-branch --branch ${GIT_BRANCH} ${GIT_REPOURL} "${GIT_REPOS_BASE}" && echo "Finished cloning into ${GIT_REPOS_BASE} from Git." || echo "Failed cloning from Git."
       fi
     else
-      mkdir -p /mnt/server/resources
+      mkdir -p "${GIT_REPOS_BASE}"
       echo "Git enabled but no repository URLs configured; installing default FiveM resources."
       git clone https://github.com/citizenfx/cfx-server-data.git /tmp && echo "Downloaded server from git." || echo "Downloading from git failed."
-      cp -Rf /tmp/resources/* resources/
+      cp -Rf /tmp/resources/* "${GIT_REPOS_BASE}/"
     fi
 
   else
