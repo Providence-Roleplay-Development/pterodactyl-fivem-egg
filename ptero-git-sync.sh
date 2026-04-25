@@ -60,10 +60,10 @@ MULTI_ANY=0
 [ -n "${GIT_EUP_REPOURL:-}" ] && MULTI_ANY=1
 
 if [ "$MULTI_ANY" = "1" ]; then
-  git_pull_or_clone "${GIT_YMAP_REPOURL:-}" "$b/ymap" "ymap"
-  git_pull_or_clone "${GIT_VEHICLE_REPOURL:-}" "$b/vehicle" "vehicle"
-  git_pull_or_clone "${GIT_SCRIPTS_REPOURL:-}" "$b/scripts" "scripts"
-  git_pull_or_clone "${GIT_EUP_REPOURL:-}" "$b/eup" "eup"
+  git_pull_or_clone "${GIT_YMAP_REPOURL:-}" "$b/[ymap]" "ymap"
+  git_pull_or_clone "${GIT_VEHICLE_REPOURL:-}" "$b/[vehicle]" "vehicle"
+  git_pull_or_clone "${GIT_SCRIPTS_REPOURL:-}" "$b/[scripts]" "scripts"
+  git_pull_or_clone "${GIT_EUP_REPOURL:-}" "$b/[eup]" "eup"
 elif [ -n "${GIT_REPOURL:-}" ]; then
   lraw="$GIT_REPOURL"
   if [[ $lraw != *.git ]]; then
